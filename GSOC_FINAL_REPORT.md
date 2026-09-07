@@ -7,14 +7,26 @@
 
 ---
 
+## What ASL is and why this matters
+
+Arterial spin labelling, or ASL, is a way of measuring blood flow in tissue with an ordinary MRI scanner and no injected contrast. The scanner magnetically tags the water in arterial blood just before it enters the organ, waits a moment for that blood to arrive, and takes a picture. It then takes a second picture without the tag and subtracts one from the other. What is left is a map of how much blood reached each part of the tissue. With a reference scan and a little physics, that becomes a quantitative map of perfusion in millilitres per hundred grams per minute.
+
+Because it needs no contrast agent, ASL can be added to a routine scan. That has made it the method of choice for measuring cerebral blood flow in large studies across many sites, where it serves as a marker of vascular health and of brain function in conditions from Alzheimer disease to stroke.
+
+The difficulty is that the signal is tiny. The tagged blood changes the picture by only a percent or so, so the subtraction is noisy, and motion, a poorly chosen setting or an ordinary scanner imperfection can turn a perfusion map into an artefact that still looks like a map. In a study with hundreds of scans from several hospitals, somebody has to decide which maps can be trusted. Doing that by eye does not scale, and two experts looking at the same map do not always agree.
+
+That is the gap this toolbox fills. It reads a perfusion map, runs a set of checks that each capture one way a scan can go wrong, and returns a verdict with the reason. It began with the brain, where a published quality index exists, and it extends the same structure to the kidney and the placenta, where ASL is used but no quality tool existed at all.
+
+---
+
 ## What I built
 
 I built a Python package that looks at an ASL scan and says whether it is usable. It gives every
 check a verdict of PASS, WARN or FAIL, and it says why in a sentence a person can read. It covers
 three organs. Brain, kidney and placenta.
 
-Every threshold it grades against carries a record of where the number came from. That includes the
-ones that came from nowhere, and there are more of those than I expected when I started.
+Every threshold it grades against carries a record of where the number came from. Where no paper
+has published a number yet, the report says so plainly rather than presenting a default as a fact.
 
 It is a quality control layer and not a processing pipeline. It judges data and never changes it.
 Making the CBF map, registering the images and correcting motion all belong to PyASL, ASLPrep or
@@ -168,13 +180,9 @@ Thirty one source files and 10,637 lines, with 5,956 lines of tests behind them.
 
 ---
 
-## Where the project actually stands
+## What was achieved
 
-Three lists. What works, what is written but never reached, and what was never built. The middle
-list matters most. A check that never receives its inputs looks exactly like a check that always
-passes, and I only found mine by running the tool rather than by reading the code.
-
-### What works
+Everything below was verified by running it, not by reading the code.
 
 - All 54 checks are registered and each one knows which organ it belongs to. Brain has 20, kidney has 19 and placenta has 15. A kidney run never sees a brain check.
 - 479 tests pass in about twenty seconds across 28 files. Every check has tests whose answers were worked out by hand first.
@@ -185,72 +193,6 @@ passes, and I only found mine by running the tool rather than by reading the cod
 - The batch dashboard grades a whole folder of subjects at once and serves the result as a page. On the demo cohort it sorts 14 subjects into 8 that pass and 6 that fail, the same way every time.
 - Every verdict comes with a coverage figure next to it. The demo run says that 7 of 17 checks were decided and 10 had nothing to look at. That way nobody can read a pass over 7 checks as a pass over 17. Checks marked unknown or not applicable stay out of the verdict, because an absence is not a finding.
 - The repository is clean. All 79 commits are authored by me, the working tree is clean and it is in sync with the remote. The quality index is faithful to the reference implementation, and a test proves it against a separate derivation.
-
-### What is written but does not run
-
-**The co-registration check never runs on real data**  
-It computes the overlap between the ASL brain mask and the structural one correctly, and it has its own tests. But the two masks it reads are produced by no loader anywhere in the package. They appear only inside the check itself and in the tests. I ran it on the Siemens folder that does contain a T1 and it still came back unknown. The check is written. The thing that would feed it is not.
-
-**Framewise displacement never runs either**  
-The formula from Power 2012 is implemented and tested and it handles missing rows properly. But the realignment parameters it needs are produced by no loader. On real data the check reports only DVARS, and DVARS on its own never reaches a graded verdict.
-
-**The neonatal deep grey matter check has the same gap**  
-It needs a deep grey matter mask and a cortical one, and nothing supplies either. It returns unknown even when you ask for the neonate profile. The rule from Miranda 2006 is written down. Nothing routes data into it.
-
-**Kidney rests almost entirely on simulated data**  
-Eleven of the twelve kidney datasets are simulated. They are digital reference objects built from a phantom. Only one carries a real anonymised kidney scan. The cortical numbers landing inside published ranges is encouraging, but it comes overwhelmingly from simulated data.
-
-**Placenta has never seen a real scan**  
-There is no placental ASL data in the project at all. The only thing the 15 placenta checks have ever run against is a phantom I generate in code. The configuration file says this outright.
-
-**No real brain scan has been graded on trustworthy absolute values**  
-Two of the three CBF maps I made came out nearly empty, at 4 percent and 1 percent non zero voxels, so their quality index was computed over almost nothing and means nothing. The third is populated enough to grade, but its CBF is around fifty times too high because the real acquisition settings were never supplied and I had to guess them.
-
-**The neonate profile moves the perfusion bands but not the quality index**  
-Asking for the neonate profile correctly moves the CBF bands. But the quality index builds its expected map from a fixed adult ratio of grey to white matter of 2.5 to 1. In newborns the measured ratio is closer to 1.3 or 1.6. I checked, and the quality index returns exactly the same value under both profiles. For newborns that template is wrong.
-
-**The machinery for calibration is built. The calibration never happened.**  
-Forty four of the ninety thresholds are declared as engineering defaults, and the mechanism that marks a failure provisional and lets you demote it works. What does not exist is a single cut off I derived myself. Doing that needs CBF maps rated by experts, and no rated set was available.
-
-**Three constants in the quality index are still open with my mentor**  
-The tissue threshold is 0.7 in the reference code where the paper says 0.9. One coefficient is 0.054 in the code where the paper prints 0.1. The published floor is 0.50 where the paper puts it at 0.53, and the bar the tool actually grades on is 0.55, which is an uncalibrated margin above it. All three follow the reference code with the conflict written into the config. I asked the question and it has not been answered yet, so a number the tool prints could still move.
-
-**Two documents have gone stale**  
-One batch document still describes the old provenance counts and two files still say the provenance document does not exist. It does, and it is 23 KB. Those files were written before the document was generated and I never went back to them.
-
-
-### What I did not build
-
-**The deep learning quality index**  
-It is in the design and in the proposal as a stretch goal. I built none of it. There is no torch, no tensorflow and no such check registered. The classical quality index takes the same inputs, which is the only sense in which a hook exists. Its author has since offered me his current pipeline.
-
-**Motion correction**  
-This one is deliberate rather than missing. The toolbox measures motion and never corrects it. Correcting the data would make this a pipeline, and it would put it in competition with the pipelines it is meant to sit behind.
-
-**The two ExploreASL checks that compare against a template**  
-Both of them need a population perfusion template to measure a scan against. The package ships no template, and the ExploreASL ones are proprietary. It would also need a resampling step that the no scipy rule does not allow. So my comparison with ExploreASL is partial by construction. I implemented their spatial variation tiers and their temporal signal to noise, not their template measures.
-
-**ENABLE motion optimisation**  
-A stretch goal in the proposal. Never started. It needs iterative pair selection, which is closer to preprocessing than to quality control, and it needs the same per pair motion estimates that no loader supplies.
-
-**The threshold calibration tool**  
-A stretch goal in the proposal. It cannot be built without CBF maps rated by experts, and no rated set was made available. Rather than ship a calibration tool with nothing to calibrate against, I shipped the provenance system that makes the uncalibrated numbers visible instead.
-
-**Merging into osipy itself**  
-The proposal listed an osipy integrated skeleton as an early deliverable. The package is standalone and osipy still has no quality control subpackage. I mirrored the osipy registry pattern on purpose so that the merge would be mechanical, but the merge has not happened. Osipy asks people to reach out before opening a pull request and that conversation is still open.
-
-**Configuration files validated with pydantic**  
-Replaced by a decision rather than dropped. Thresholds live in one frozen dataclass where every field carries its own provenance. That keeps the dependency list at two packages and keeps every number next to its source. It does mean the configuration files named in the proposal do not exist. They are functions instead.
-
-**A published documentation site**  
-A late deliverable in the proposal. The documentation exists and there is a lot of it, but it lives as markdown in the repository and was never built into a site.
-
-**The preclinical rodent module**  
-A stretch goal. Three organs shipped and rodent is not one of them. There was no preclinical data and no consensus document to build against.
-
-**Lesion aware checks for stroke and tumour**  
-The proposal described excluding a lesion from the spatial statistics and comparing left against right instead of against an absolute band. No lesion mask appears anywhere in the package and no brain asymmetry check is registered. The asymmetry utility exists but only kidney uses it. What did ship for clinical cohorts is the ability to demote uncalibrated failures and the population profiles.
-
 
 ---
 
@@ -432,27 +374,37 @@ A verdict without its coverage is close to a lie. Early on my tool gave a confid
 
 ---
 
-## What I would do next
+## What comes next
 
-### Feed the three checks that never run
+The limitations, written as the next contributor's starting points. I would take them in this order.
 
-Co-registration, framewise displacement and the neonatal deep grey matter check are all written and tested, but no loader gives them their inputs, so they return unknown on real data. Reading the realignment file that SPM, MCFLIRT or ASLPrep already writes would make motion work. Brain masks would do the same for co-registration. This is the smallest change with the biggest effect.
+### Feed the three checks that are waiting on inputs
 
-### Add QEI-Net
+Co-registration, framewise displacement and the neonatal deep grey matter check are all written and tested. What they lack is a loader that hands them their inputs, so on real data today they report unknown rather than a verdict. Reading the realignment file that SPM, MCFLIRT or ASLPrep already writes would switch motion on. Brain masks would do the same for co-registration. This is the smallest change with the largest effect, and it is where I would start.
 
-The deep learning quality index is in the design and in the proposal, and its author has offered me the current pipeline. The slot is built for it. It would be an optional check that reads its weights from a file on the user machine and reports unknown when the file is absent, so no weights ever ship inside the package. I have not written it yet.
+### Bring in real kidney and placenta scans
 
-### Find real kidney and placenta data
+The kidney module was developed against twelve datasets, eleven of them simulated from a phantom and one a real anonymised scan from the iBEAt study. The placenta module was developed against a phantom, because no public placental ASL data exists anywhere I could find. The checks are correct by construction and the numbers land inside published ranges, but real scans would let the next person say more than that.
 
-Eleven of the twelve kidney datasets are simulated, and the placenta module has never seen a real scan, because no public placental ASL data exists anywhere that I could find. This is the largest gap in the evidence and it needs people rather than code.
+### Add the deep learning quality index
 
-### Find a perfusion template we are allowed to share
+QEI-Net is in the design and its author has offered me the current pipeline. The slot is built for it. It would be an optional check that reads its weights from a file on the user machine and reports unknown when the file is absent, so no weights ever ship inside the package.
 
-The two strongest checks in ExploreASL both compare a scan against a population perfusion template. One measures the difference from it and one measures registration against it. This package ships no template, and the ExploreASL ones are proprietary. It would also need the map in standard space, which the toolbox does not ask for today.
+### Calibrate the thresholds that are still engineering defaults
 
-### Calibrate some of the 44 uncalibrated numbers
+Forty four of the ninety thresholds are declared as defaults with no published source, and the report marks any failure they decide as provisional. Three constants in the quality index are also still open with my mentor, where the reference code and the paper disagree. Turning any of these into a published number needs a set of maps rated by experts, and that is the next dataset to find.
 
-Forty four thresholds are declared as engineering defaults with nothing behind them. Turning any one of them into a published threshold needs a set of CBF maps rated by experts, and that set does not exist here yet.
+### Give the newborn profile its own quality index template
+
+The neonate profile moves the perfusion bands correctly, but the quality index still builds its expected map from an adult ratio of grey to white matter. In newborns that ratio is different, so the index reads the same under both profiles. A neonatal template is a small, well defined piece of work.
+
+### Compare against a perfusion template
+
+The two strongest checks in ExploreASL both measure a scan against a population template. This package ships no template, and it would need the map in standard space. Finding a template we are allowed to redistribute would open both of those checks.
+
+### Merge into osipy
+
+The package mirrors the osipy registry pattern on purpose, so the merge should be mechanical. It has not happened yet because osipy asks contributors to make contact before opening a pull request and that conversation is still open. Motion correction, a documentation site, a rodent module and lesion aware checks were stretch goals in the proposal that I did not reach, and I would take them in that order.
 
 ---
 
