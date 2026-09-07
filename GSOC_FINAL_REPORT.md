@@ -1,3 +1,9 @@
+<p>
+  <img src="report_images/osipi_logo.png" alt="OSIPI" height="56">
+  &nbsp;&nbsp;&nbsp;
+  <img src="report_images/gsoc_logo.png" alt="Google Summer of Code" height="56">
+</p>
+
 # GSoC 2026 final report: a quality control toolbox for ASL MRI
 
 **Contributor** Agnik Misra  
@@ -74,13 +80,9 @@ reason, the perfusion map, the map inside the organ mask, and the distribution o
 
 ![A brain report](report_images/report_brain-01.jpg)
 
-*A brain scan that passed. The quality index reads 0.969 against a cut off of 0.55.*
+*A brain scan that passed. The quality index reads 0.969 against a cut off of 0.55. The
+kidney and placenta reports carry the same layout.*
 
-![A kidney report](report_images/report_kidney-04.jpg)
-
-*The images from a kidney run. The perfusion map, then the same map inside the cortex mask, then
-the spread of values inside it. No band is shaded on the histogram because no published normal
-range exists for the kidney.*
 
 ---
 
@@ -376,35 +378,13 @@ A verdict without its coverage is close to a lie. Early on my tool gave a confid
 
 ## What comes next
 
-The limitations, written as the next contributor's starting points. I would take them in this order.
+Three things I would do first.
 
-### Feed the three checks that are waiting on inputs
+**Give three checks their inputs.** The co-registration, motion and newborn deep grey matter checks are written and tested. They just need a loader to hand them their data. This is a small change and it would switch all three on.
 
-Co-registration, framewise displacement and the neonatal deep grey matter check are all written and tested. What they lack is a loader that hands them their inputs, so on real data today they report unknown rather than a verdict. Reading the realignment file that SPM, MCFLIRT or ASLPrep already writes would switch motion on. Brain masks would do the same for co-registration. This is the smallest change with the largest effect, and it is where I would start.
+**Get real kidney and placenta scans.** Most of the kidney testing used simulated data and the placenta module has only seen a phantom, because no public placental ASL data exists yet. Real scans are the next step.
 
-### Bring in real kidney and placenta scans
-
-The kidney module was developed against twelve datasets, eleven of them simulated from a phantom and one a real anonymised scan from the iBEAt study. The placenta module was developed against a phantom, because no public placental ASL data exists anywhere I could find. The checks are correct by construction and the numbers land inside published ranges, but real scans would let the next person say more than that.
-
-### Add the deep learning quality index
-
-QEI-Net is in the design and its author has offered me the current pipeline. The slot is built for it. It would be an optional check that reads its weights from a file on the user machine and reports unknown when the file is absent, so no weights ever ship inside the package.
-
-### Calibrate the thresholds that are still engineering defaults
-
-Forty four of the ninety thresholds are declared as defaults with no published source, and the report marks any failure they decide as provisional. Three constants in the quality index are also still open with my mentor, where the reference code and the paper disagree. Turning any of these into a published number needs a set of maps rated by experts, and that is the next dataset to find.
-
-### Give the newborn profile its own quality index template
-
-The neonate profile moves the perfusion bands correctly, but the quality index still builds its expected map from an adult ratio of grey to white matter. In newborns that ratio is different, so the index reads the same under both profiles. A neonatal template is a small, well defined piece of work.
-
-### Compare against a perfusion template
-
-The two strongest checks in ExploreASL both measure a scan against a population template. This package ships no template, and it would need the map in standard space. Finding a template we are allowed to redistribute would open both of those checks.
-
-### Merge into osipy
-
-The package mirrors the osipy registry pattern on purpose, so the merge should be mechanical. It has not happened yet because osipy asks contributors to make contact before opening a pull request and that conversation is still open. Motion correction, a documentation site, a rodent module and lesion aware checks were stretch goals in the proposal that I did not reach, and I would take them in that order.
+**Add the deep learning quality index.** The slot is ready for it and its author has offered the pipeline.
 
 ---
 
